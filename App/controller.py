@@ -40,11 +40,32 @@ recae sobre el controlador.
 #  Inicializacion del catalogo
 # ___________________________________________________
 
+def init():
+    analyzer = model.newAnalyzer()
+    return analyzer
 
 # ___________________________________________________
 #  Funciones para la carga de datos y almacenamiento
 #  de datos en los modelos
 # ___________________________________________________
+
+
+def cabFileSelection(file):
+    if file == '1':
+        cabFile = 'taxi-trips-wrvz-psew-subset-small.csv'
+    elif file == '2':
+        cabFile = 'taxi-trips-wrvz-psew-subset-medium.csv'
+    else:
+        cabFile = 'taxi-trips-wrvz-psew-subset-large.csv'
+    return cabFile
+
+
+def loadData(analyzer, cabFile):
+    cabFile = cf.data_dir + cabFile
+    input_file = csv.DictReader(open(cabFile, encoding="utf-8"), delimiter=",")
+    for trip in input_file:
+        model.loadCompanies(analyzer['companies'], trip)
+    return analyzer
 
 # ___________________________________________________
 #  Funciones para consultas

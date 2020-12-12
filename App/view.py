@@ -48,6 +48,46 @@ operación seleccionada.
 #  Menu principal
 # ___________________________________________________
 
+
+def printMenu():
+    print("\n")
+    print("*******************************************")
+    print("Bienvenido")
+    print("1. Inicializar Analizador")
+    print("2. Cargar información de taxis")
+    print("3. Mostrar reporte")
+    print("4. Sistema de puntos y premios")
+    print("5. Consultar mejor horario para una ruta")
+    print("0. Salir")
+    print("*******************************************")
+
 """
 Menu principal
 """
+
+while True:
+    printMenu()
+    eleccion = input('Digite la opción que desea: ')
+
+    if int(eleccion[0]) == 1:
+        print("\nInicializando...")
+        cont = controller.init()
+    
+    elif int(eleccion[0]) == 2:
+        print("Indique el tamaño del archivo: \n")
+        print("1. Small")
+        print("2. Medium")
+        print("3. Large\n")
+        tamanio = input()
+        tripFile = controller.cabFileSelection(tamanio)
+        print("\nCargando información de viajes...")
+        print(controller.loadData(cont, tripFile))
+        
+    elif int(eleccion[0]) == 3:
+        None
+    elif int(eleccion[0]) == 4:
+        None
+    elif int(eleccion[0]) == 5:
+        None
+    else:
+        sys.exit(0)
