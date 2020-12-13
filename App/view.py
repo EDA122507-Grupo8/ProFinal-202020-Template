@@ -28,6 +28,7 @@
 import sys
 import config
 from App import controller
+from App import model
 from DISClib.ADT import stack
 import timeit
 assert config
@@ -82,7 +83,7 @@ while True:
         tripFile = controller.cabFileSelection(tamanio)
         print("\nCargando información de viajes...")
         print(controller.loadData(cont, tripFile))
-        
+    
     elif int(eleccion[0]) == 3:
         None
     elif int(eleccion[0]) == 4:

@@ -64,7 +64,7 @@ def loadData(analyzer, cabFile):
     cabFile = cf.data_dir + cabFile
     input_file = csv.DictReader(open(cabFile, encoding="utf-8"), delimiter=",")
     for trip in input_file:
-        model.loadCompanies(analyzer['companies'], trip)
+        model.addCompanies(analyzer['companies'], trip)
     return analyzer
 
 # ___________________________________________________
