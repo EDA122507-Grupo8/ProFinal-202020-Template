@@ -111,7 +111,7 @@ def removeVertex(graph, vertex):
     pass
 
 
-def numVertices(graph):
+def numVertex(graph):
     """
     Retorna el numero de vertices del  grafo graph
 
@@ -188,7 +188,7 @@ def edges(graph):
                 edge = it.next(iteredge)
                 if (graph['directed']):
                     lt.addLast(lstresp, edge)
-                elif (not lt.isPresent(lstresp, edge)):
+                elif (not lt.isPresent(lstresp, edge, )):
                     lt.addLast(lstresp, edge)
         return lstresp
     except Exception as exp:
@@ -281,12 +281,8 @@ def getEdge(graph, vertexa, vertexb):
         itvertex = it.newIterator(lst)
         while (it.hasNext(itvertex)):
             edge = it.next(itvertex)
-            if (graph['directed']):
-                if (e.either(edge) == vertexa and
-                   (e.other(edge, e.either(edge)) == vertexb)):
-                    return edge
-            elif(e.either(edge) == vertexa or
-                 (e.other(edge, e.either(edge)) == vertexa)):
+            if (e.either(edge) == vertexa or
+               (e.other(edge, e.either(edge)) == vertexa)):
                 if (e.either(edge) == vertexb or
                    (e.other(edge, e.either(edge)) == vertexb)):
                     return edge
