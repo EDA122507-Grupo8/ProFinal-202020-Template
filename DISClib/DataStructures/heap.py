@@ -125,8 +125,9 @@ def insert(heap, element):
     Args:
         heap: El arreglo con la informacion
         element: El elemento a guardar
+            El valor del elemento es 'size'
     Returns:
-        El heap con el nuevo elemento
+        El heap con el nuevo elemento 
     Raises:
         Exception
     """
@@ -134,6 +135,28 @@ def insert(heap, element):
         heap['size'] += 1
         lt.insertElement(heap['elements'], element, heap['size'])
         swim(heap, heap['size'])
+        return heap
+    except Exception as exp:
+        error.reraise(exp, 'heap:insert')
+
+
+def insertWithValue(heap, element, valor):
+    """
+    Guarda la pareja llave-valor en el heap. Lo guarda en la última
+    posición y luego hace swim del elemento
+
+    Args:
+        heap: El arreglo con la informacion
+        element: El elemento a guardar
+            El valor del elemento es el suministrado
+    Returns:
+        El heap con el nuevo elemento 
+    Raises:
+        Exception
+    """
+    try:
+        lt.insertElement(heap['elements'], element, valor)
+        swim(heap, valor)
         return heap
     except Exception as exp:
         error.reraise(exp, 'heap:insert')
