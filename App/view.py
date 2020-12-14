@@ -82,10 +82,18 @@ while True:
         tamanio = input()
         tripFile = controller.cabFileSelection(tamanio)
         print("\nCargando información de viajes...")
-        print(controller.loadData(cont, tripFile))
+        controller.loadData(cont, tripFile)
     
     elif int(eleccion[0]) == 3:
-        None
+        print("Ingrese el número de tops que desea conocer: \n")
+        tops = int(input())
+        print("El total de taxis encontrados ene l archivos ed de: " + str(controller.callTotalTaxis(cont)))
+        print("El total de compañías con al menos un taxi afiliado es de: " + str(controller.callTotalCompanies(cont)))
+        print("EL Top de compañías por taxis afiliados es: \n")
+        print(controller.calltopTaxis(cont, tops))
+        print("EL Top de compañías por servicios prestados es: \n")
+        print(controller.callTopServices(cont, tops))
+
     elif int(eleccion[0]) == 4:
         None
     elif int(eleccion[0]) == 5:

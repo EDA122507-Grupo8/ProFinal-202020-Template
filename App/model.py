@@ -4,7 +4,9 @@
 
 
 from DISClib.ADT import map as mp
+from DISClib.DataStructures import mapstructure as ms
 from DISClib.DataStructures import mapentry as me
+from DISClib.DataStructures import listiterator as it
 from DISClib.ADT import list as lt
 from DISClib.ADT import minpq as mpq
 
@@ -40,15 +42,14 @@ def addCompanies(map, trip):
         currentCompany = '"Independent Owner"'
     entry = mp.get(map, currentCompany)
     if (entry is None):
-        serviceCont = 1
+        serviceCont = [1]
         taxiList = lt.newList(datastructure='ARRAY_LIST',
                             cmpfunction=compareElements)
         lt.addLast(taxiList,trip['taxi_id'])
         value = (serviceCont, taxiList)
         mp.put(map, currentCompany, value)
     else:
-        tupla = entry["value"][0]
-        tupla += 1
+        entry["value"][0][0] += 1
         lista = entry["value"][1]
         if ((lt.isPresent(lista,trip['taxi_id'])) == 0):
             lt.addLast(lista, trip['taxi_id'])
@@ -64,16 +65,19 @@ def totalTaxis(map):
     """
     Calcular total de taxis sin repetir id
     """
-    listaRetorno = lt.newList('ARRAY_LIST')
-    for company in mp.size(map):
-        tupla = me.getValue(company)
-        lista = tupla["value"][1]
-        for taxi in lt.size(lista):
-            taxiId = lt.getElement(lista, taxi)
-            entry = lt.getElement(listaRetorno, taxiId)
-            if (entry is None):
+    listaRetorno = lt.newList('ARRAY_LIST', cmpfunction=compareElements)
+    listaTuplas = ms.valueSet(map)
+    taxisIterator = it.newIterator(listaTuplas)
+    while it.hasNext(taxisIterator):
+        valor = it.next(taxisIterator)
+        listaId = valor[1]
+        idsIterator = it.newIterator(listaId)
+        while it.hasNext(idsIterator):
+            taxiId = it.next(idsIterator)
+            if (lt.isPresent(listaRetorno, taxiId) == 0):
                 lt.addLast(listaRetorno, taxiId)
     return lt.size(listaRetorno)
+
 
 
 def totalCompanies(map):
@@ -83,32 +87,110 @@ def totalCompanies(map):
     """
     exc = mp.get(map, 'Independet Owner')
     if (exc is None):
-        return int(mp.size(map)
+        return int(mp.size(map))
     else:
         return (int(mp.size(map)) - 1)
 
 
-def topCompaniesTaxis(map):
+def topCompaniesTaxis(map, topNumber):
     """
     Heap --> maxPQ de compañías por taxis afiliados
     """
-    heap = mpq.newMinPQ(cmpfunction=compareCompanies)
-    tupla = mp.get(map, company)
-    lista = tupla["value"][1]
-    valorCompany = lt.size(lista)
-    mpq.insertWithValue(heap, me.getKey(map), valorCompany)
-    return heap
+
+    maxPQ = mpq.newMinPQ(cmpfunction=comparePQs)
+    diccionario = {}
+    listaComparativa = []
+    contTop = 1
+    listaTuplas = ms.valueSet(map)
+    taxisIterator = it.newIterator(listaTuplas)
 
 
-def topCompaniesServices(map, top):
+    while it.hasNext(taxisIterator):
+        valor = it.next(taxisIterator)
+        listaId = valor[1]
+        valorCompany = lt.size(listaId)
+        mpq.insert(maxPQ, valorCompany)
+
+
+    while (contTop <= topNumber):
+        contTop += 1
+        maximo = mpq.min(maxPQ)
+        mpq.delMin(maxPQ)
+        listaComparativa.append(maximo)
+
+
+    listaLlaves = mp.keySet(map)
+    companiesIterator = it.newIterator(listaLlaves)
+    tuplas = mp.valueSet(listaTuplas)
+    valueIterator = it.newIterator(tuplas)
+
+
+    contador = 0
+    while it.hasNext(companiesIterator):
+        llave = it.next(companiesIterator)
+        tuplaLlave = it.next(valueIterator)
+        listaTaxis = tuplaLlave[1]
+        valorLlave = lt.size(listaTaxis)
+        for elemento in listaComparativa:
+            if (valorLlave == elemento) and (contador < topNumber):
+                if (llave not in diccionario) and (llave is not "Independent Owner" ):
+                    diccionario[valorLlave] = [llave]
+                    contador += 1
+                else:
+                    diccionario[valorLlave].append(llave)
+                    contador += 1
+
+    return diccionario
+
+
+def topCompaniesServices(map, topNumber):
     """
     Heap --> maxPQ de compañías por servicios prestados
     """
-    heap = mpq.newMinPQ(cmpfunction=compareCompanies)
-    tupla = mp.get(map, company)
-    valorCompany = tupla["value"][0]
-    mpq.insertWithValue(heap, me.getKey(map), valorCompany)
-    return heap
+
+    maxPQ = mpq.newMinPQ(cmpfunction=comparePQs)
+    diccionario = {}
+    listaComparativa = []
+    contTop = 1
+    listaTuplas = ms.valueSet(map)
+    taxisIterator = it.newIterator(listaTuplas)
+
+
+    while it.hasNext(taxisIterator):
+        valor = it.next(taxisIterator)
+        valorCompany = valor[0]
+        mpq.insert(maxPQ, valorCompany)
+
+
+    while (contTop <= topNumber):
+        contTop += 1
+        maximo = mpq.min(maxPQ)
+        mpq.delMin(maxPQ)
+        listaComparativa.append(maximo)
+
+
+    listaLlaves = mp.keySet(map)
+    companiesIterator = it.newIterator(listaLlaves)
+    tuplas = mp.valueSet(listaTuplas)
+    valueIterator = it.newIterator(tuplas)
+
+
+    contador = 0
+    while it.hasNext(companiesIterator):
+        llave = it.next(companiesIterator)
+        tuplaLlave = it.next(valueIterator)
+        valorLlave = tuplaLlave[0]
+
+        for elemento in listaComparativa:
+            if (valorLlave == elemento) and (contador < topNumber):
+                if (llave not in diccionario) and (llave is not "Independent Owner" ):
+                    diccionario[valorLlave] = [llave]
+                    contador += 1
+                else:
+                    diccionario[valorLlave].append(llave)
+                    contador += 1
+
+    return diccionario
     
 
 # ==============================
@@ -130,6 +212,15 @@ def compareElements(element1, element2):
     if (element1 == element2):
         return 0
     elif (element1 > element2):
+        return 1
+    else:
+        return -1
+
+
+def comparePQs(pq1, pq2):
+    if (pq1==pq2):
+        return 0
+    elif (pq1 < pq2):
         return 1
     else:
         return -1

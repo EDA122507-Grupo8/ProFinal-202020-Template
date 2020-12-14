@@ -70,3 +70,16 @@ def loadData(analyzer, cabFile):
 # ___________________________________________________
 #  Funciones para consultas
 # ___________________________________________________
+
+
+def callTotalTaxis(cont):
+    return model.totalTaxis(cont['companies'])
+
+def callTotalCompanies(cont):
+    return model.totalCompanies(cont['companies'])
+
+def callTopServices(cont, tops):
+    return model.topCompaniesServices(cont['companies'], tops)
+
+def calltopTaxis(cont, tops):
+    return model.topCompaniesTaxis(cont['companies'], tops)
