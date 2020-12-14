@@ -20,12 +20,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  """
 import config
+from DISClib.ADT.graph import gr
+from DISClib.ADT import map as m
+from DISClib.ADT import list as lt
+from DISClib.DataStructures import listiterator as it
+from DISClib.Algorithms.Graphs import scc as scc
+from DISClib.Algorithms.Graphs import dijsktra as djk
+from DISClib.Utils import error as error
+import datetime
+
+from DISClib.DataStructures import mapentry as me
+from DISClib.Algorithms.Graphs import dfs as dfs
+
 from DISClib.ADT import list as lt
 from DISClib.DataStructures import listiterator as it
 from DISClib.ADT import orderedmap as om
 from DISClib.DataStructures import rbt 
 from DISClib.DataStructures import mapentry as me
 from DISClib.ADT import map as m
+from DISClib.DataStructures import edge as ed
 import datetime
 assert config
 from math import radians, cos, sin, asin, sqrt
@@ -60,33 +73,189 @@ def newAnalyzer():
     clasificacion = "fechas"
     
     analyzer = {'accidentes': None,
-                clasificacion: None
+                clasificacion: None,
+                'connections':None,
+                'duracion':None,
+                'rango':None,
+                'promedios':None
+                
+
+                
                 }
 
     analyzer['accidentes'] = lt.newList('SINGLE_LINKED', compareIds)
     analyzer[clasificacion] = om.newMap(omaptype='RBT',
                                       comparefunction=compareDates)
+    
+    analyzer['connections'] = gr.newGraph(datastructure='ADJ_LIST',
+                                              directed=True,
+                                              size=1400,
+                                              comparefunction=compareStopIds)
+    analyzer["rango"]={}   
+    analyzer["duracion"]={}  
+    analyzer["promedios"]={}
+    
     return analyzer
 
 
 # Funciones para agregar informacion al catalogo
 
 
-def addAccident(analyzer, accidente,number):
+def addAccident(analyzer, trip):
     """
     """
-    if number == 1:
-        clasificacion = "fechas"
-        lt.addLast(analyzer['accidentes'], accidente)
-        updateDateIndex(analyzer[clasificacion], accidente)
     
-    else: 
-        clasificacion = "fechas"
-        lt.addLast(analyzer['accidentes'], accidente)
-        updateDateIndex2(analyzer[clasificacion], accidente)
+    clasificacion = "fechas"
+    lt.addLast(analyzer['accidentes'], trip)
+    updateDateIndex(analyzer[clasificacion], trip)
+    if trip['pickup_community_area']!=trip['dropoff_community_area'] :
+        hora_inicio=getDateTimeTaxiTripHour(trip['trip_start_timestamp'])
+        hora_final=getDateTimeTaxiTripHour(trip['trip_end_timestamp'])
+        origen = trip['pickup_community_area']+"-"+hora_a_string(hora_inicio)
+        
+        destination = trip['dropoff_community_area']+"-"+hora_a_string(hora_final)
+        addStation(analyzer, destination)
+        
+        duration = float(trip['trip_seconds'])
+        addStation(analyzer, origen)
+        
+        
+        if not(trip['pickup_community_area'] in analyzer["rango"].keys()):
+            analyzer["rango"][trip['pickup_community_area']]={}
+            analyzer["rango"][trip['pickup_community_area']][hora_inicio]=origen
+        else:
+            if not(hora_inicio in analyzer["rango"][trip['pickup_community_area']]):
+                analyzer["rango"][trip['pickup_community_area']][hora_inicio]=origen
+        
+        if not(trip['dropoff_community_area'] in analyzer["rango"].keys()):
+            analyzer["rango"][trip['dropoff_community_area']]={}
+            analyzer["rango"][trip['dropoff_community_area']][hora_final]=destination
+        else:
+            if not(hora_final in analyzer["rango"][trip['dropoff_community_area']]):
+                analyzer["rango"][trip['dropoff_community_area']][hora_final]=destination
+        if not(trip['pickup_community_area'] in analyzer["duracion"].keys()):
+            analyzer["duracion"][trip['pickup_community_area']]={}
+            analyzer["duracion"][trip['pickup_community_area']][hora_inicio]=hora_a_segundos(hora_inicio)
+        else:
+            if not(hora_inicio in analyzer["duracion"][trip['pickup_community_area']]):
+                analyzer["duracion"][trip['pickup_community_area']][hora_inicio]=hora_a_segundos(hora_inicio)
+        
+        if not(trip['dropoff_community_area'] in analyzer["duracion"].keys()):
+            analyzer["duracion"][trip['dropoff_community_area']]={}
+            analyzer["duracion"][trip['dropoff_community_area']][hora_final]=hora_a_segundos(hora_final)
+        else:
+            if not(hora_final in analyzer["duracion"][trip['dropoff_community_area']]):
+                analyzer["duracion"][trip['dropoff_community_area']][hora_final]=hora_a_segundos(hora_final)
+        if not(origen in analyzer["promedios"].keys()):
+            analyzer["promedios"][origen]={}
+            analyzer["promedios"][origen][trip['dropoff_community_area']]=[float(duration)]
+        else:
+            if not (trip['dropoff_community_area'] in analyzer["promedios"][origen]):
+                analyzer["promedios"][origen][trip['dropoff_community_area']]=[float(duration)]
+            else:
+                analyzer["promedios"][origen][trip['dropoff_community_area']].append(float(duration))
+            
+    return(analyzer)
+        
+def grafo(analyzer):
+    for estacion_inicio in analyzer["rango"].keys():
+        for hora in analyzer["rango"][estacion_inicio].keys():
+            llave=analyzer["rango"][estacion_inicio][hora]
+            
+            if llave in analyzer["promedios"].keys():
+                for estacion_f in analyzer["promedios"][llave].keys():
+                    cantidad=0
+                    tiempo=0
+                    for duracion in analyzer["promedios"][llave][estacion_f]:
+                        cantidad+=1
+                        tiempo+=duracion
+                    promedio=tiempo/cantidad
+                    segundos_inicial=analyzer["duracion"][estacion_inicio][hora]
+                    segundos=segundos_inicial+promedio
+                    horas=segundos//3600
+                    minutos=(segundos%3600)//900                       
+                    minutos=minutos*15
+                    if horas>23:
+                        horas=horas-24
+                    if minutos>45:
+                        minutos=minutos-60
+                    formato=str(int(horas))+":"+str(int(minutos))
+                    segundos_duracion=(horas*3600)+(minutos*15)
+                    destination = estacion_f+"-"+formato
+                    addStation(analyzer, destination)
+                    if not(estacion_f in analyzer["duracion"].keys()):
+                        analyzer["duracion"][estacion_f]={}
+                        analyzer["duracion"][estacion_f][datetime.datetime.strptime(formato,"%H:%M")]=segundos_duracion
+                    else:
+                        if not(datetime.datetime.strptime(formato,"%H:%M") in analyzer["duracion"][estacion_f]):
+                            analyzer["duracion"][estacion_f][datetime.datetime.strptime(formato,"%H:%M")]=segundos_duracion
+                    if not(estacion_f in analyzer["rango"].keys()):
+                        analyzer["rango"][estacion_f]={}
+                        analyzer["rango"][estacion_f][datetime.datetime.strptime(formato,"%H:%M")]=destination
+                    else:
+                        if not(datetime.datetime.strptime(formato,"%H:%M") in analyzer["rango"][estacion_f]):
+                            analyzer["rango"][estacion_f][datetime.datetime.strptime(formato,"%H:%M")]=destination
+                    addConnection(analyzer,analyzer["rango"][estacion_inicio][hora],destination,promedio)
+    return (analyzer)
+
+
+
+
+            
+
+
+            
+
+
+        
+        
+        
+
 
     
+    
+   
+def compareStopIds(stop, keyvaluestop):
+    """
+    Compara dos estaciones
+    """
+    stopcode = keyvaluestop['key']
+    if (stop == stopcode):
+        return 0
+    elif (stop > stopcode):
+        return 1
+    else:
+        return -1
+
+
+def compareroutes(route1, route2):
+    """
+    Compara dos rutas
+    """
+    if (route1 == route2):
+        return 0
+    elif (route1 > route2):
+        return 1
+    else:
+        return -1
+
+
+def totalStops(analyzer):
+    """
+    Retorna el total de estaciones (vertices) del grafo
+    """
+    return gr.numVertices(analyzer['connections'])
+
+
+def totalConnections(analyzer):
+    """
+    Retorna el total arcos del grafo
+    """
+    return gr.numEdges(analyzer['connections'])
+    
     return analyzer
+
+
 
 
 def updateDateIndex(map, accidente):
@@ -274,6 +443,31 @@ def compare_accidents(accident1,accident2):
     else:
         return -1
 
+def addStation(citibike, stationid):
+    """
+    Adiciona una estación como un vertice del grafo
+    """
+    if not gr.containsVertex(citibike ['connections'], stationid):
+            gr.insertVertex(citibike ['connections'], stationid)
+
+    return citibike
+
+
+def addConnection(citibike, origin, destination, duration):
+    """
+    Adiciona un arco entre dos estaciones. Si el arci existe se actualiza su peso con el promedio
+    """
+    edge = gr.getEdge(citibike['connections'], origin, destination)
+    if edge is None:
+        gr.addEdge(citibike['connections'], origin, destination, duration)
+    else:
+
+        ed.updateAverageWeight(edge,duration)
+
+    return citibike
+
+  
+
 
 def updateDateIndex2(map, accidente):
     occurreddate = accidente['trip_start_timestamp']
@@ -357,3 +551,76 @@ def parteb2(analyzer,limite,dia1,mes1,año1,dia2,mes2,año2):
         lista.append(maximo)
         a+=1
     return print("El top "+ str(limite) +" de taxis con más puntos entre las fechas "+ str(fecha1)+" y "+str(fecha2)+" ", lista)
+
+
+def getDateTimeTaxiTripHour(tripstartdate):
+    taxitripdatetime = datetime.datetime.strptime(tripstartdate, '%Y-%m-%dT%H:%M:%S.%f')
+    return(taxitripdatetime.time())
+def hora_a_string(hora):
+    devolver=str(hora.hour)+":"+str(hora.minute)
+    return(devolver)
+
+def hora_a_segundos(hora):
+    h_segundos=hora.hour*3600
+    m_seguntos=hora.minute*60
+    segundos=h_segundos+m_seguntos
+    return(segundos)
+
+def tiempo_espera(analyzer):
+    for a in analyzer["duracion"].keys():
+        print(a)
+
+        for b in  analyzer["duracion"][a].keys():
+            for c in analyzer["duracion"][a].keys():
+                if b != c:
+                    if analyzer["duracion"][a][c]<analyzer["duracion"][a][b]:
+                        duration_menor=analyzer["duracion"][a][b]-analyzer["duracion"][a][c]
+                        duration_mayor=(24*3600)-duration_menor
+                        addConnection(analyzer,analyzer["rango"][a][c],analyzer["rango"][a][b], duration_menor)
+                        addConnection(analyzer,analyzer["rango"][a][b],analyzer["rango"][a][c], duration_mayor)
+                    else:
+                        duration_menor=analyzer["duracion"][a][c]-analyzer["duracion"][a][b]
+                        duration_mayor=(24*3600)-duration_menor
+                        addConnection(analyzer,analyzer["rango"][a][b],analyzer["rango"][a][c], duration_menor)
+                        addConnection(analyzer,analyzer["rango"][a][c],analyzer["rango"][a][b], duration_mayor)
+    return(analyzer)
+
+def hora_adecuada(analyzer,hora_i,hora_f,estacion_i,estacion_f):
+    mayor=365*24*3600
+    mejor=None
+    ruta=None
+    for a in analyzer["rango"][estacion_i].keys():
+        hora=str(a.hour)
+        minute=str(a.minute)
+        comprar=hora+":"+minute
+        tiempo=datetime.datetime.strptime(comprar, '%H:%M')
+        print(tiempo)
+        print(hora_i)
+        print(hora_f)
+        if tiempo>=hora_i and tiempo<=hora_f:
+            grafo=djk.Dijkstra(analyzer["connections"],analyzer["rango"][estacion_i][a])
+            for b in analyzer["rango"][estacion_f].keys():
+                if djk.hasPathTo(grafo,analyzer["rango"][estacion_f][b]):
+                    if mayor > djk.distTo(grafo,analyzer["rango"][estacion_f][b]):
+                        mayor= djk.distTo(grafo,analyzer["rango"][estacion_f][b])
+                        ruta= djk.pathTo(grafo,analyzer["rango"][estacion_f][b])
+                        mejor=analyzer["rango"][estacion_i][a]
+    return({"mejor hora: ":mejor,"ruta: ":ruta,"duracion: ":mayor})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

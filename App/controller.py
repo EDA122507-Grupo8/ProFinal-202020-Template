@@ -52,7 +52,7 @@ def init():
 #  de datos en los modelos
 # ___________________________________________________
 
-def loadData(analyzer, archivo,number):
+def loadData(analyzer, archivo):
     """
     Carga los datos de los archivos CSV en el modelo
     """
@@ -60,8 +60,12 @@ def loadData(analyzer, archivo,number):
     archivo = cf.data_dir + archivo
     input_file = csv.DictReader(open(archivo, encoding="utf-8"),
                                 delimiter=",")
+    pos=0
     for accidente in input_file:
-        model.addAccident(analyzer, accidente,number)
+        model.addAccident(analyzer, accidente)
+        pos+=1
+        print(pos)
+        
         
     return analyzer
 
@@ -139,3 +143,16 @@ def parteb1(analyzer,limite,fecha):
 
 def parteb2(analyzer,limite,dia1,mes1,año1,dia2,mes2,año2):
     model.parteb2(analyzer,limite,dia1,mes1,año1,dia2,mes2,año2)
+
+def partec(analyzer,hora_i,hora_f,estacion_i,estacion_f,auto):
+    analyzer=model.grafo(analyzer)
+    if auto==1:
+        analyzer=model.tiempo_espera(analyzer)
+    initialhour = datetime.datetime.strptime(hora_i, "%H:%M")
+    finalhour = datetime.datetime.strptime(hora_f, '%H:%M')
+    respuesta=model.hora_adecuada(analyzer,initialhour,finalhour,estacion_i,estacion_f)
+    return(respuesta)
+
+    
+
+

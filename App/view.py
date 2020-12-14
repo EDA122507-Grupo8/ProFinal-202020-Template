@@ -51,6 +51,7 @@ def printMenu():
     print("2- Cargar información de accidentes")
     print("3- Consultar puntos de taxi en una fecha")
     print("4- Consultar puntos de taxi en el rango de fechas")
+    print("8- consulta del mejor horario para desplazarse entre dos “Community Area” ")
     print("0- Salir")
     print("*******************************************")
 
@@ -66,19 +67,20 @@ while True:
         print("\nInicializando....")
         # cont es el controlador que se usará de acá en adelante
         cont = controller.init()
-        hours = controller.init()
-
+        
     elif int(inputs[0]) == 2:
-        accidentfile=input("Ingrese nombre archivo")
+        accidentfile="taxi-small.csv"
         print("\nCargando información de taxis ....")        
-        controller.loadData(cont, accidentfile,1)
-        controller.loadData(hours, accidentfile,2)
+        controller.loadData(cont, accidentfile)
+        
         print("si se necesita cargar mas archivos llame otra vez la funcion")
         print('Accidentes cargados: ' + str(controller.accidentSize(cont)))
         print('Altura del arbol: ' + str(controller.indexHeight(cont)))
         print('Elementos en el arbol: ' + str(controller.indexSize(cont)))
         print('Menor Llave: ' + str(controller.minKey(cont)))
         print('Mayor Llave: ' + str(controller.maxKey(cont)))
+
+        print(cont["rango"])
         
     elif int(inputs[0]) == 3:
         limite=int(input("Inserte límite"))
@@ -94,6 +96,15 @@ while True:
         año2=int(input("Inserte año fecha2 "))
         limite=int(input("Inserte límite"))
         controller.parteb2(cont,limite,dia1,mes1,año1,dia2,mes2,año2)
+
+    elif int(inputs[0])==8:
+        auto=int(input("desea tiempos de espera? (si=1) o (no=0)\n"))
+        estacion_i=input("inserte estacion origen\n")
+        estacion_f=input("inserte estacion final\n")
+        hora_i=input("inserte hora inicio\n")
+        hora_f=input("inserte hora limite\n")
+        print(controller.partec(cont,hora_i,hora_f,estacion_i,estacion_f,auto))
+
 
     else:
         sys.exit(0)
