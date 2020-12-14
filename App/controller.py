@@ -37,7 +37,6 @@ recae sobre el controlador.
 #  Inicializacion del catalogo
 # ___________________________________________________
 
-
 def init():
     """
     Llama la funcion de inicializacion  del modelo.
@@ -52,27 +51,40 @@ def init():
 #  de datos en los modelos
 # ___________________________________________________
 
-def loadData(analyzer, archivo):
-    """
-    Carga los datos de los archivos CSV en el modelo
-    """
-    'archivo="p1.csv"'
-    archivo = cf.data_dir + archivo
-    input_file = csv.DictReader(open(archivo, encoding="utf-8"),
-                                delimiter=",")
-    pos=0
-    for accidente in input_file:
-        model.addAccident(analyzer, accidente)
-        pos+=1
-        print(pos)
-        
-        
+def cabFileSelection(file):
+    if file == '1':
+        cabFile = 'taxi-trips-wrvz-psew-subset-small.csv'
+    elif file == '2':
+        cabFile = 'taxi-trips-wrvz-psew-subset-medium.csv'
+    else:
+        cabFile = 'taxi-trips-wrvz-psew-subset-large.csv'
+    return cabFile
+
+
+def loadData(analyzer, cabFile):
+    cabFile = cf.data_dir + cabFile
+    input_file = csv.DictReader(open(cabFile, encoding="utf-8"), delimiter=",")
+    for trip in input_file:
+        model.addCompanies(analyzer['companies'], trip)
     return analyzer
 
 # ___________________________________________________
 #  Funciones para consultas
 # ___________________________________________________
 
+
+
+def callTotalTaxis(cont):
+    return model.totalTaxis(cont['companies'])
+
+def callTotalCompanies(cont):
+    return model.totalCompanies(cont['companies'])
+
+def callTopServices(cont, tops):
+    return model.topCompaniesServices(cont['companies'], tops)
+
+def calltopTaxis(cont, tops):
+    return model.topCompaniesTaxis(cont['companies'], tops)
 
 def accidentSize(analyzer):
     """
@@ -153,6 +165,4 @@ def partec(analyzer,hora_i,hora_f,estacion_i,estacion_f,auto):
     respuesta=model.hora_adecuada(analyzer,initialhour,finalhour,estacion_i,estacion_f)
     return(respuesta)
 
-    
-
-
+   

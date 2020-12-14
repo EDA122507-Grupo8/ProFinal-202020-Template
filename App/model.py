@@ -20,29 +20,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  """
 import config
-from DISClib.ADT.graph import gr
-from DISClib.ADT import map as m
-from DISClib.ADT import list as lt
-from DISClib.DataStructures import listiterator as it
-from DISClib.Algorithms.Graphs import scc as scc
-from DISClib.Algorithms.Graphs import dijsktra as djk
-from DISClib.Utils import error as error
-import datetime
-
-from DISClib.DataStructures import mapentry as me
-from DISClib.Algorithms.Graphs import dfs as dfs
-
-from DISClib.ADT import list as lt
-from DISClib.DataStructures import listiterator as it
-from DISClib.ADT import orderedmap as om
-from DISClib.DataStructures import rbt 
-from DISClib.DataStructures import mapentry as me
-from DISClib.ADT import map as m
-from DISClib.DataStructures import edge as ed
 import datetime
 assert config
 from math import radians, cos, sin, asin, sqrt
 
+from DISClib.ADT import map as m
+from DISClib.ADT import list as lt
+from DISClib.ADT import minpq as mpq
+from DISClib.ADT import orderedmap as om
+from DISClib.ADT.graph import gr
+
+from DISClib.DataStructures import listiterator as it
+from DISClib.DataStructures import mapentry as me
+from DISClib.DataStructures import mapstructure as ms
+from DISClib.DataStructures import edge as ed
+from DISClib.DataStructures import rbt 
+
+from DISClib.Algorithms.Graphs import scc as scc
+from DISClib.Algorithms.Graphs import dijsktra as djk
+from DISClib.Algorithms.Graphs import dfs as dfs
+
+from DISClib.Utils import error as error
 
 """
 En este archivo definimos los TADs que vamos a usar,
@@ -58,7 +56,6 @@ tablas de simbolos.
 # -----------------------------------------------------
 # API del TAD Catalogo de Libros
 # -----------------------------------------------------
-
 
 def newAnalyzer():
     """ Inicializa el analizador
@@ -77,13 +74,12 @@ def newAnalyzer():
                 'connections':None,
                 'duracion':None,
                 'rango':None,
-                'promedios':None
-                
-
-                
+                'promedios':None,
+                'companies':None
                 }
 
     analyzer['accidentes'] = lt.newList('SINGLE_LINKED', compareIds)
+    
     analyzer[clasificacion] = om.newMap(omaptype='RBT',
                                       comparefunction=compareDates)
     
@@ -91,6 +87,11 @@ def newAnalyzer():
                                               directed=True,
                                               size=1400,
                                               comparefunction=compareStopIds)
+    
+        analyzer['companies'] = mp.newMap(numelements=1000,
+                                        maptype='PROBING',
+                                        comparefunction=compareCompanies)
+      
     analyzer["rango"]={}   
     analyzer["duracion"]={}  
     analyzer["promedios"]={}
@@ -119,7 +120,6 @@ def addAccident(analyzer, trip):
         duration = float(trip['trip_seconds'])
         addStation(analyzer, origen)
         
-        
         if not(trip['pickup_community_area'] in analyzer["rango"].keys()):
             analyzer["rango"][trip['pickup_community_area']]={}
             analyzer["rango"][trip['pickup_community_area']][hora_inicio]=origen
@@ -133,6 +133,7 @@ def addAccident(analyzer, trip):
         else:
             if not(hora_final in analyzer["rango"][trip['dropoff_community_area']]):
                 analyzer["rango"][trip['dropoff_community_area']][hora_final]=destination
+                
         if not(trip['pickup_community_area'] in analyzer["duracion"].keys()):
             analyzer["duracion"][trip['pickup_community_area']]={}
             analyzer["duracion"][trip['pickup_community_area']][hora_inicio]=hora_a_segundos(hora_inicio)
@@ -156,6 +157,35 @@ def addAccident(analyzer, trip):
                 analyzer["promedios"][origen][trip['dropoff_community_area']].append(float(duration))
             
     return(analyzer)
+  
+  
+def addCompanies(map, trip):
+    """
+    Recibe analyzer['companies'] y carga al mapa:
+        key = nombre de la compañía 
+            ('Independent Owner' agrupa a los taxis que no están afiliados a una compañía) 
+        value = tupla con la siguiente información:
+            conteo alusivo a los servicios prestados
+            lista con los id de los taxis afiliados a la misma
+    """
+    currentCompany = trip['company']
+    if (currentCompany == ''):
+        currentCompany = '"Independent Owner"'
+    entry = mp.get(map, currentCompany)
+    if (entry is None):
+        serviceCont = [1]
+        taxiList = lt.newList(datastructure='ARRAY_LIST',
+                            cmpfunction=compareElements)
+        lt.addLast(taxiList,trip['taxi_id'])
+        value = (serviceCont, taxiList)
+        mp.put(map, currentCompany, value)
+    else:
+        entry["value"][0][0] += 1
+        lista = entry["value"][1]
+        if ((lt.isPresent(lista,trip['taxi_id'])) == 0):
+            lt.addLast(lista, trip['taxi_id'])
+    return map  
+
         
 def grafo(analyzer):
     for estacion_inicio in analyzer["rango"].keys():
@@ -199,47 +229,6 @@ def grafo(analyzer):
     return (analyzer)
 
 
-
-
-            
-
-
-            
-
-
-        
-        
-        
-
-
-    
-    
-   
-def compareStopIds(stop, keyvaluestop):
-    """
-    Compara dos estaciones
-    """
-    stopcode = keyvaluestop['key']
-    if (stop == stopcode):
-        return 0
-    elif (stop > stopcode):
-        return 1
-    else:
-        return -1
-
-
-def compareroutes(route1, route2):
-    """
-    Compara dos rutas
-    """
-    if (route1 == route2):
-        return 0
-    elif (route1 > route2):
-        return 1
-    else:
-        return -1
-
-
 def totalStops(analyzer):
     """
     Retorna el total de estaciones (vertices) del grafo
@@ -254,8 +243,6 @@ def totalConnections(analyzer):
     return gr.numEdges(analyzer['connections'])
     
     return analyzer
-
-
 
 
 def updateDateIndex(map, accidente):
@@ -325,10 +312,136 @@ def newOffenseEntry(offensegrp, crime):
     return ofentry
 
 
-# ==============================
-# Funciones de consulta
-# ==============================
+def totalTaxis(map):
+    """
+    Calcular total de taxis sin repetir id
+    """
+    listaRetorno = lt.newList('ARRAY_LIST', cmpfunction=compareElements)
+    listaTuplas = ms.valueSet(map)
+    taxisIterator = it.newIterator(listaTuplas)
+    while it.hasNext(taxisIterator):
+        valor = it.next(taxisIterator)
+        listaId = valor[1]
+        idsIterator = it.newIterator(listaId)
+        while it.hasNext(idsIterator):
+            taxiId = it.next(idsIterator)
+            if (lt.isPresent(listaRetorno, taxiId) == 0):
+                lt.addLast(listaRetorno, taxiId)
+    return lt.size(listaRetorno)
 
+
+def totalCompanies(map):
+    """
+    Número total de compañías con al menos 1 taxi afiliado.
+    Se ignoran los taxis registrados como 'Independet Owner'
+    """
+    exc = m.get(map, 'Independet Owner')
+    if (exc is None):
+        return int(m.size(map))
+    else:
+        return (int(m.size(map)) - 1)
+
+
+def topCompaniesTaxis(map, topNumber):
+    """
+    Heap --> maxPQ de compañías por taxis afiliados
+    """
+
+    maxPQ = mpq.newMinPQ(cmpfunction=comparePQs)
+    diccionario = {}
+    listaComparativa = []
+    contTop = 1
+    listaTuplas = ms.valueSet(map)
+    taxisIterator = it.newIterator(listaTuplas)
+
+
+    while it.hasNext(taxisIterator):
+        valor = it.next(taxisIterator)
+        listaId = valor[1]
+        valorCompany = lt.size(listaId)
+        mpq.insert(maxPQ, valorCompany)
+
+
+    while (contTop <= topNumber):
+        contTop += 1
+        maximo = mpq.min(maxPQ)
+        mpq.delMin(maxPQ)
+        listaComparativa.append(maximo)
+
+
+    listaLlaves = m.keySet(map)
+    companiesIterator = it.newIterator(listaLlaves)
+    tuplas = m.valueSet(listaTuplas)
+    valueIterator = it.newIterator(tuplas)
+
+
+    contador = 0
+    while it.hasNext(companiesIterator):
+        llave = it.next(companiesIterator)
+        tuplaLlave = it.next(valueIterator)
+        listaTaxis = tuplaLlave[1]
+        valorLlave = lt.size(listaTaxis)
+        for elemento in listaComparativa:
+            if (valorLlave == elemento) and (contador < topNumber):
+                if (llave not in diccionario) and (llave is not "Independent Owner" ):
+                    diccionario[valorLlave] = [llave]
+                    contador += 1
+                else:
+                    diccionario[valorLlave].append(llave)
+                    contador += 1
+
+    return diccionario
+
+
+def topCompaniesServices(map, topNumber):
+    """
+    Heap --> maxPQ de compañías por servicios prestados
+    """
+
+    maxPQ = mpq.newMinPQ(cmpfunction=comparePQs)
+    diccionario = {}
+    listaComparativa = []
+    contTop = 1
+    listaTuplas = ms.valueSet(map)
+    taxisIterator = it.newIterator(listaTuplas)
+
+
+    while it.hasNext(taxisIterator):
+        valor = it.next(taxisIterator)
+        valorCompany = valor[0]
+        mpq.insert(maxPQ, valorCompany)
+
+
+    while (contTop <= topNumber):
+        contTop += 1
+        maximo = mpq.min(maxPQ)
+        mpq.delMin(maxPQ)
+        listaComparativa.append(maximo)
+
+
+    listaLlaves = m.keySet(map)
+    companiesIterator = it.newIterator(listaLlaves)
+    tuplas = m.valueSet(listaTuplas)
+    valueIterator = it.newIterator(tuplas)
+
+
+    contador = 0
+    while it.hasNext(companiesIterator):
+        llave = it.next(companiesIterator)
+        tuplaLlave = it.next(valueIterator)
+        valorLlave = tuplaLlave[0]
+
+        for elemento in listaComparativa:
+            if (valorLlave == elemento) and (contador < topNumber):
+                if (llave not in diccionario) and (llave is not "Independent Owner" ):
+                    diccionario[valorLlave] = [llave]
+                    contador += 1
+                else:
+                    diccionario[valorLlave].append(llave)
+                    contador += 1
+
+    return diccionario
+    
 
 def accidentSize(analyzer):
     """
@@ -397,51 +510,6 @@ def getAccidentsByRange(analyzer, initialDate, finalDate):
     return totcrimes
 
 
-def compareIds(id1, id2):
-    """
-    Compara dos crimenes
-    """
-    if (id1 == id2):
-        return 0
-    elif id1 > id2:
-        return 1
-    else:
-        return -1
-
-
-def compareDates(date1, date2):
-    """
-    Compara dos fechas
-    """
-    if (date1 == date2):
-        return 0
-    elif (date1 > date2):
-        return 1
-    else:
-        return -1
-
-
-def compareOffenses(offense1, offense2):
-    """
-    Compara dos tipos de crimenes
-    """
-    offense = me.getKey(offense2)
-    if (offense1 == offense):
-        return 0
-    elif (offense1 > offense):
-        return 1
-    else:
-        return -1
-
-
-def compare_accidents(accident1,accident2):
-    offense = me.getKey(accident2)
-    if (accident1 == offense):
-        return 0
-    elif (accident1 > offense):
-        return 1
-    else:
-        return -1
 
 def addStation(citibike, stationid):
     """
@@ -465,8 +533,6 @@ def addConnection(citibike, origin, destination, duration):
         ed.updateAverageWeight(edge,duration)
 
     return citibike
-
-  
 
 
 def updateDateIndex2(map, accidente):
@@ -608,19 +674,97 @@ def hora_adecuada(analyzer,hora_i,hora_f,estacion_i,estacion_f):
     return({"mejor hora: ":mejor,"ruta: ":ruta,"duracion: ":mayor})
 
 
+# Funciones de comparacion
+  
+  
+ def compareStopIds(stop, keyvaluestop):
+    """
+    Compara dos estaciones
+    """
+    stopcode = keyvaluestop['key']
+    if (stop == stopcode):
+        return 0
+    elif (stop > stopcode):
+        return 1
+    else:
+        return -1
 
 
+def compareroutes(route1, route2):
+    """
+    Compara dos rutas
+    """
+    if (route1 == route2):
+        return 0
+    elif (route1 > route2):
+        return 1
+    else:
+        return -1
+      
+def compareIds(id1, id2):
+    """
+    Compara dos crimenes
+    """
+    if (id1 == id2):
+        return 0
+    elif id1 > id2:
+        return 1
+    else:
+        return -1
 
+def compareCompanies(company1, company2):
+    companieKey = company2["key"]
+    if (company1 == companieKey):
+        return 0
+    elif (company1 > companieKey):
+        return 1
+    else:
+        return -1
 
+def compareDates(date1, date2):
+    """
+    Compara dos fechas
+    """
+    if (date1 == date2):
+        return 0
+    elif (date1 > date2):
+        return 1
+    else:
+        return -1      
+      
+def compareElements(element1, element2):
+    if (element1 == element2):
+        return 0
+    elif (element1 > element2):
+        return 1
+    else:
+        return -1
+      
+def comparePQs(pq1, pq2):
+    if (pq1==pq2):
+        return 0
+    elif (pq1 < pq2):
+        return 1
+    else:
+        return -1      
 
+def compareOffenses(offense1, offense2):
+    """
+    Compara dos tipos de crimenes
+    """
+    offense = me.getKey(offense2)
+    if (offense1 == offense):
+        return 0
+    elif (offense1 > offense):
+        return 1
+    else:
+        return -1
 
-
-
-
-
-
-
-
-
-
-
+def compare_accidents(accident1,accident2):
+    offense = me.getKey(accident2)
+    if (accident1 == offense):
+        return 0
+    elif (accident1 > offense):
+        return 1
+    else:
+        return -1
